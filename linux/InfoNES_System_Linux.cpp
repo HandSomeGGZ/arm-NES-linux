@@ -58,16 +58,21 @@ static int *zoom_x_tab;
 static int *zoom_y_tab;
 
 extern int InitJoypadInput(void);
-extern int GetJoypadInput(void);
+extern unsigned int GetJoypadInput(void);
 
 static int lcd_fb_display_px(WORD color, int x, int y)
 {
 	unsigned char  *pen8;
 	unsigned short *pen16;
-	pen8 = (unsigned char *)(fb_mem + y*line_width + x*px_width);
-	pen16 = (unsigned short *)pen8;
-	*pen16 = color;
-	
+	unsigned short color_f;
+	pen16 = (unsigned short *)(fb_mem + (799-x)*480*4 + y*4);
+//	pen16 = (unsigned short *)pen8;
+	color_f=((color&0x7e0)<<5)|((color&0x01f)<<3);
+	*pen16=color_f;
+	pen16++;
+	color_f=(color&0xf800)>>8;
+	*pen16 = color_f;
+
 	return 0;
 }
 
@@ -89,13 +94,20 @@ static int lcd_fb_init()
 	}
 	
 	//计算参数
-	px_width     = var.bits_per_pixel / 8;
+/*	px_width     = var.bits_per_pixel /8;
 	line_width   = var.xres * px_width;
 	screen_width = var.yres * line_width;
 	lcd_width    = var.xres;
 	lcd_height   = var.yres;
-	
-	printf("fb width:%d height:%d \n", lcd_width, lcd_height);
+*/
+	px_width     = var.bits_per_pixel /8;
+	line_width   = var.yres * px_width;
+	screen_width = var.xres * line_width;
+	lcd_width    = var.yres;
+	lcd_height   = var.xres;
+
+
+	printf("fb width:%d height:%d pixel:%d \n", lcd_width, lcd_height,px_width*8);
 
 	fb_mem = (unsigned char *)mmap(NULL, screen_width, PROT_READ | PROT_WRITE, MAP_SHARED, fb_fd, 0);
 	if(fb_mem == (void *)-1)
@@ -208,7 +220,7 @@ WORD NesPalette[64] =
 /*                main() : Application main                          */
 /*                                                                   */
 /*===================================================================*/
-
+static unsigned int key_pad_two;
 /* Application main */
 int main( int argc, char **argv )
 {
@@ -248,9 +260,17 @@ int main( int argc, char **argv )
 	//主循环中处理输入事件 声音播放
 	while(1)
 	{
-		dwKeyPad1 = GetJoypadInput();
+
+		key_pad_two= GetJoypadInput();
+		printf("%d\n",key_pad_two);
+		dwKeyPad1 =(key_pad_two&0xff00)>>8;
+		printf("pad1=%d\n",dwKeyPad1);
+		dwKeyPad2 =(key_pad_two&0xff);
+
+//		dwKeyPad1= GetJoypadInput();
+
 		//主线程休息一下 让子线程用一下 CPU
-		usleep(300);
+		usleep(50);
 	}
 	return(0);
 }
@@ -660,12 +680,18 @@ void *InfoNES_MemorySet( void *dest, int c, int count )
 /*           Transfer the contents of work frame on the screen       */
 /*                                                                   */
 /*===================================================================*/
+unsigned short ChColor(unsigned short color)
+{
+	return (color>>3)<<4|(color&0x001f);
+}
+
 void InfoNES_LoadFrame()
 {
 	int x,y;
 	int line_width;
-	WORD wColor;
+	WORD wColor,R,G,B,Gr;
 
+	
 	//修正 即便没有 LCD 也可以出声
 	if(0 < fb_fd)
 	{
@@ -674,11 +700,32 @@ void InfoNES_LoadFrame()
 			line_width = zoom_y_tab[y] * NES_DISP_WIDTH;
 			for (x = 0; x < lcd_width; x++ )
 			{
-				wColor = WorkFrame[line_width  + zoom_x_tab[x]];
+				wColor = ChColor(WorkFrame[line_width  + zoom_x_tab[x]]);
 				lcd_fb_display_px(wColor, x, y);
 			}
 		}
 	}
+	usleep(3000);	
+	  /*16 bit per pixel*/
+	 /* Exchange 16-bit to 256 gray */
+	 /*
+     for (y = 0; y < NES_DISP_HEIGHT; y++ )
+     {
+         for (x = 0; x < NES_DISP_WIDTH; x++ )
+         {
+             //wColor = WorkFrame[y * lcd_width  + x ];
+			  wColor = WorkFrame[ ( y << 8 ) + x ];
+			  R = ( ( wColor & 0x7c00 ) >>7 );
+              G = ( ( wColor & 0x03e0 ) >>2 );
+              B = ( ( wColor & 0x001f ) <<3 );            
+              //Gr= ( ( 9798*R + 19235*G + 3735*B)>>15);
+              wColor=(WORD)((B<<16)|(G<<8)|R);
+             lcd_fb_display_px(wColor, x, y);
+         }
+     }
+	 */
+	 
+	 
 }
 
 
@@ -703,7 +750,7 @@ void InfoNES_PadState( DWORD *pdwPad1, DWORD *pdwPad2, DWORD *pdwSystem )
  *      Input for InfoNES
  *
  */
-
+	//printf("InfoNES_PadState:\n");
 	/* Transfer joypad state */
 	*pdwPad1	= dwKeyPad1;
 	*pdwPad2	= dwKeyPad2;
@@ -732,16 +779,27 @@ void InfoNES_SoundInit( void )
 /*===================================================================*/
 int InfoNES_SoundOpen( int samples_per_sync, int sample_rate )
 {
-	//sample_rate 采样率 44100
-	//samples_per_sync  735
+	// sample_rate 采样率 44100
+	// samples_per_sync  735
+	// 采样率 / 8 * 声道数 = 44100 / 8 * 1 = 5512.5
+	// 8位 声音
+	/*
+	声道数 1
+    采样率 44100
+    采样位数 8
+    每次播放块大小（NES  APU 每次生成一块）735
+	*/
 	unsigned int rate      = sample_rate;
 	snd_pcm_hw_params_t *hw_params;
-	
+	return 1;	
+
+
 	if(0 > snd_pcm_open(&playback_handle, "default", SND_PCM_STREAM_PLAYBACK, 0)) 
 	{
 		printf("snd_pcm_open err\n");
 		return -1;
 	}
+	printf("snd_pcm_open ok!\nsamples_per_sync=%d,sample_rate=%d\n",samples_per_sync,sample_rate);
 	
 	if(0 > snd_pcm_hw_params_malloc(&hw_params))
 	{
@@ -761,12 +819,13 @@ int InfoNES_SoundOpen( int samples_per_sync, int sample_rate )
 	}
 
 	//16bit PCM 数据
+	
 	if(0 > snd_pcm_hw_params_set_format(playback_handle, hw_params, SND_PCM_FORMAT_U8))
 	{
 		printf("snd_pcm_hw_params_set_format err\n");
 		return -1;
 	}
-
+	
 	if(0 > snd_pcm_hw_params_set_rate_near(playback_handle, hw_params, &rate, 0)) 
 	{
 		printf("snd_pcm_hw_params_set_rate_near err\n");
@@ -793,6 +852,7 @@ int InfoNES_SoundOpen( int samples_per_sync, int sample_rate )
 		printf("snd_pcm_prepare err\n");
 		return -1;
 	}
+	
 	return 1;
 }
 
@@ -815,17 +875,22 @@ void InfoNES_SoundClose( void )
 /*===================================================================*/
 void InfoNES_SoundOutput( int samples, BYTE *wave1, BYTE *wave2, BYTE *wave3, BYTE *wave4, BYTE *wave5 )
 {
+	
 	int i;
 	int ret;
 	unsigned char wav;
 	unsigned char *pcmBuf = (unsigned char *)malloc(samples);
-
+return ;	
+	//printf("InfoNES_SoundOutput,samples=%d\n",samples);
+	//printf("\n");
 	for (i=0; i <samples; i++)
 	{
 		wav = (wave1[i] + wave2[i] + wave3[i] + wave4[i] + wave5[i]) / 5;
 		//单声道 8位数据
 		pcmBuf[i] = wav;
+		//printf("%02x",wav);
 	}
+	//printf("\n");
 	ret = snd_pcm_writei(playback_handle, pcmBuf, samples);
 	if(-EPIPE == ret)
     {
@@ -843,6 +908,7 @@ void InfoNES_SoundOutput( int samples, BYTE *wave1, BYTE *wave2, BYTE *wave3, BY
 /*===================================================================*/
 void InfoNES_Wait()
 {
+	//usleep(20);
 }
 
 

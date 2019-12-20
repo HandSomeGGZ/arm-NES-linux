@@ -420,7 +420,7 @@ int InfoNES_Reset()
   /*  Initialize pAPU                                                  */
   /*-------------------------------------------------------------------*/
 
-  InfoNES_pAPUInit();
+  //InfoNES_pAPUInit();
 
   /*-------------------------------------------------------------------*/
   /*  Initialize Mapper                                                */
@@ -702,10 +702,10 @@ int InfoNES_HSync()
 
     case SCAN_UNKNOWN_START:
       if ( FrameCnt == 0 )
+
       {
         // Transfer the contents of work frame on the screen
         InfoNES_LoadFrame();
-        
 #if 0
         // Switching of the double buffer
         WorkFrameIdx = 1 - WorkFrameIdx;

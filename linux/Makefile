@@ -1,4 +1,4 @@
-CC = arm-linux-gcc
+CC = gcc
 TARBALL = InfoNES08J
 
 # InfoNES
