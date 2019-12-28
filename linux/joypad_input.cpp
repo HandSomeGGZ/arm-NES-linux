@@ -118,8 +118,7 @@ static int USBjoypadGet(void)
 	 */
 	//因为 USB 手柄每次只能读到一位键值 所以要有静态变量保存上一次的值
 	static unsigned char joypad = 0;
-	static unsigned char joypad_1 = 0;
-	 struct js_event e;
+	struct js_event e;
 	if(0 < read (USBjoypad_fd, &e, sizeof(e)))
 	{
 		if(0x2 == e.type)
@@ -200,100 +199,128 @@ static int USBjoypadGet(void)
 					joypad &= ~(1<<1);
 			}
 		}
-		if(0 < read (USBjoypad_fd_1, &e, sizeof(e)))	//second player
+		return joypad+255;
+	}
+	else
+		return -1;
+}
+
+static int USBjoypad_1_Get(void)
+{
+	/**
+	 * FC手柄 bit 键位对应关系 真实手柄中有一个定时器，处理 连A  连B 
+	 * 0  1   2       3       4    5      6     7
+	 * A  B   Select  Start  Up   Down   Left  Right
+	 */
+	//因为 USB 手柄每次只能读到一位键值 所以要有静态变量保存上一次的值
+	static unsigned char joypad_1 = 0;
+	struct js_event f;
+	struct js_event e;
+	if(0 < read (USBjoypad_fd_1, &f, sizeof(f)))	//second player
+	{
+		if(0x2 == f.type)
 		{
-			if(0x2 == e.type)
+			if(0x8001 == f.value && 0x1 == f.number)
 			{
-				if(0x8001 == e.value && 0x1 == e.number)
-				{
-						joypad_1 |= 1<<4;
-				}
-				if(0x7fff == e.value && 0x1 == e.number)
-				{
-						joypad_1 |= 1<<5;
-				}
-				if(0x0 == e.value && 0x1 == e.number)
-				{
-						joypad_1 &= ~(1<<4 | 1<<5);
-				}
-				if(0x8001 == e.value && 0x0 == e.number)
-				{
-						joypad_1 |= 1<<6;
-				}
-				if(0x7fff == e.value && 0x0 == e.number)
-				{
-						joypad_1 |= 1<<7;
-				}
-				if(0x0 == e.value && 0x0 == e.number)
-				{
-						joypad_1 &= ~(1<<6 | 1<<7);
-				}
+					joypad_1 |= 1<<4;
 			}
-			
-			if(0x1 == e.type)
+			if(0x7fff == f.value && 0x1 == f.number)
 			{
-				if(0x1 == e.value && 0x8 == e.number)
-				{
-						joypad_1 |= 1<<2;
-				}
-				if(0x0 == e.value && 0x8 == e.number)
-				{
-						joypad_1 &= ~(1<<2);
-				}
-				if(0x1 == e.value && 0x9 == e.number)
-				{
-						joypad_1 |= 1<<3;
-				}
-				if(0x0 == e.value && 0x9 == e.number)
-				{
-						joypad_1 &= ~(1<<3);
-				}
-				if(0x1 == e.value && 0x1 == e.number)
-				{
-						joypad_1 |= 1<<0;
-				}
-				if(0x0 == e.value && 0x1 == e.number)
-				{
-						joypad_1 &= ~(1<<0);
-				}
-				if(0x1 == e.value && 0x2 == e.number)
-				{
-						joypad_1 |= 1<<1;
-				}
-				if(0x0 == e.value && 0x2 == e.number)
-				{
-						joypad_1 &= ~(1<<1);
-				}
-				if(0x1 == e.value && 0x0 == e.number)
-				{
-						joypad_1 |= 1<<0;
-				}
-				if(0x0 == e.value && 0x0 == e.number)
-				{
-						joypad_1 &= ~(1<<0);
-				}
-				if(0x1 == e.value && 0x3 == e.number)
-				{
-						joypad_1 |= 1<<1;
-				}
-				if(0x0 == e.value && 0x3 == e.number)
-				{
-						joypad_1 &= ~(1<<1);
-				}
+					joypad_1 |= 1<<5;
+			}
+			if(0x0 == f.value && 0x1 == f.number)
+			{
+					joypad_1 &= ~(1<<4 | 1<<5);
+			}
+			if(0x8001 == f.value && 0x0 == f.number)
+			{
+					joypad_1 |= 1<<6;
+			}
+			if(0x7fff == f.value && 0x0 == f.number)
+			{
+					joypad_1 |= 1<<7;
+			}
+			if(0x0 == f.value && 0x0 == f.number)
+			{
+					joypad_1 &= ~(1<<6 | 1<<7);
 			}
 		}
-		return (joypad<<8)|joypad_1;
+		
+		if(0x1 == f.type)
+		{
+			if(0x1 == f.value && 0x8 == f.number)
+			{
+					joypad_1 |= 1<<2;
+			}
+			if(0x0 == f.value && 0x8 == f.number)
+			{
+					joypad_1 &= ~(1<<2);
+			}
+			if(0x1 == f.value && 0x9 == f.number)
+			{
+					joypad_1 |= 1<<3;
+			}
+			if(0x0 == f.value && 0x9 == f.number)
+			{
+					joypad_1 &= ~(1<<3);
+			}
+			if(0x1 == f.value && 0x1 == f.number)
+			{
+					joypad_1 |= 1<<0;
+			}
+			if(0x0 == f.value && 0x1 == f.number)
+			{
+					joypad_1 &= ~(1<<0);
+			}
+			if(0x1 == f.value && 0x2 == f.number)
+			{
+					joypad_1 |= 1<<1;
+			}
+			if(0x0 == f.value && 0x2 == f.number)
+			{
+					joypad_1 &= ~(1<<1);
+			}
+			if(0x1 == f.value && 0x0 == f.number)
+			{
+					joypad_1 |= 1<<0;
+			}
+			if(0x0 == f.value && 0x0 == f.number)
+			{
+					joypad_1 &= ~(1<<0);
+			}
+			if(0x1 == f.value && 0x3 == f.number)
+			{
+					joypad_1 |= 1<<1;
+			}
+			if(0x0 == f.value && 0x3 == f.number)
+			{
+					joypad_1 &= ~(1<<1);
+			}
+		}
+		return joypad_1;
 	}
 	return -1;
 }
 
+
 static int USBjoypadDevInit(void)
 {
 	USBjoypad_fd = open(USB_JS_DEV, O_RDONLY);
-	USBjoypad_fd_1 = open(USB_JS_DEV_1, O_RDONLY);
 	if(-1 == USBjoypad_fd)
 	{
 		printf("%s dev not found \r\n", USB_JS_DEV);
+		return -1;
+	}
+	return 0;
+}
+
+static int USBjoypad_1_DevInit(void)
+{
+	
+	USBjoypad_fd_1 = open(USB_JS_DEV_1, O_RDONLY);
+	if(-1 == USBjoypad_fd_1)
+	{
+		printf("%s dev not found \r\n", USB_JS_DEV_1);
 		return -1;
 	}
 	return 0;
@@ -305,10 +332,22 @@ static int USBjoypadDevExit(void)
 	return 0;
 }
 
+static int USBjoypad_1_DevExit(void)
+{
+	close(USBjoypad_fd_1);
+	return 0;
+}
+
 static T_JoypadInput usbJoypadInput = {
 	USBjoypadDevInit,
 	USBjoypadDevExit,
 	USBjoypadGet,
+};
+
+static T_JoypadInput usbJoypad_1_Input = {
+	USBjoypad_1_DevInit,
+	USBjoypad_1_DevExit,
+	USBjoypad_1_Get,
 };
 
 int InitJoypadInput(void)
@@ -316,6 +355,7 @@ int InitJoypadInput(void)
 	int iErr = 0;
 	iErr = RegisterJoypadInput(&joypadInput);
 	iErr = RegisterJoypadInput(&usbJoypadInput);
+	iErr = RegisterJoypadInput(&usbJoypad_1_Input);
 	return iErr;
 }
 
@@ -327,6 +367,7 @@ unsigned int GetJoypadInput(void)
 
 	/* 被唤醒后,返回数据 */
 	pthread_mutex_unlock(&g_tMutex);
+	printf("g_InputEvent=%d\n",g_InputEvent);
 	return g_InputEvent;
 }
 

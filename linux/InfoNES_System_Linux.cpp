@@ -263,10 +263,14 @@ int main( int argc, char **argv )
 
 		key_pad_two= GetJoypadInput();
 		printf("%d\n",key_pad_two);
-		dwKeyPad1 =(key_pad_two&0xff00)>>8;
-		printf("pad1=%d\n",dwKeyPad1);
-		dwKeyPad2 =(key_pad_two&0xff);
 
+		if(key_pad_two<254)
+			dwKeyPad1 =key_pad_two;
+		printf("pad1=%d\n",dwKeyPad1);
+		if(key_pad_two>254)
+			dwKeyPad2 =key_pad_two-255;
+		
+		printf("pad2=%d\n",dwKeyPad2);
 //		dwKeyPad1= GetJoypadInput();
 
 		//主线程休息一下 让子线程用一下 CPU
